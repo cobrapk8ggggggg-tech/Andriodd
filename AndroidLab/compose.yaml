@@ -1,0 +1,71 @@
+# Dedicated, single-account Android node. Never run this on the Railway service.
+services:
+  android:
+    container_name: zeus-lab-android
+    profiles: [device]
+    image: redroid/redroid:14.0.0-latest
+    privileged: true
+    command: ["androidboot.redroid_width=720", "androidboot.redroid_height=1280", "androidboot.redroid_dpi=280", "androidboot.redroid_gpu_mode=guest"]
+    volumes: ["android-data:/data"]
+    networks:
+      lab: {ipv4_address: 172.31.80.2}
+    mem_limit: 3g
+    cpus: 2
+    pids_limit: 1024
+    restart: unless-stopped
+  worker:
+    security_opt: [no-new-privileges:true]
+    build:
+      context: ..
+      dockerfile: AndroidLab/Dockerfile
+    environment:
+      ZEUS_ANDROID_OWNER_ID: ${ZEUS_ANDROID_OWNER_ID:?set the ZEUS account UUID}
+      ZEUS_ANDROID_SIGNING_KEY: ${ZEUS_ANDROID_SIGNING_KEY:?set a random signing key}
+      ZEUS_ANDROID_CAPTURE_TOKEN: ${ZEUS_ANDROID_CAPTURE_TOKEN:?set a separate random capture key}
+      ZEUS_ANDROID_ADB: android:5555
+      ZEUS_ANDROID_PROXY: 172.31.80.3:8080
+      ZEUS_ANDROID_NODE_URL: http://172.31.80.1:9090
+      ZEUS_ANDROID_NODE_TOKEN: ${ZEUS_ANDROID_NODE_TOKEN:?set a separate container controller key}
+      ZEUS_ANDROID_STUN_URL: ${ZEUS_ANDROID_STUN_URL:-}
+      ZEUS_ANDROID_TURN_URL: ${ZEUS_ANDROID_TURN_URL:-}
+      ZEUS_ANDROID_TURN_SECRET: ${ZEUS_ANDROID_TURN_SECRET:-}
+    volumes: ["lab-data:/data"]
+    networks: [lab]
+    # An authenticated TURN relay is required when ICE cannot reach this node.
+    mem_limit: 3g
+    cpus: 2
+    pids_limit: 128
+    restart: unless-stopped
+  capture:
+    image: mitmproxy/mitmproxy:11.0.2
+    entrypoint: ["mitmdump"]
+    command: ["--listen-host", "0.0.0.0", "--listen-port", "8080", "--set", "stream_large_bodies=1m", "-s", "/addons/capture.py"]
+    environment:
+      ZEUS_ANDROID_CAPTURE_TOKEN: ${ZEUS_ANDROID_CAPTURE_TOKEN:?set capture key}
+      ZEUS_ANDROID_CAPTURE_ENDPOINT: http://worker:8080/internal/capture
+    volumes: ["./zeus_android/capture.py:/addons/capture.py:ro", "capture-ca:/home/mitmproxy/.mitmproxy"]
+    networks:
+      lab: {ipv4_address: 172.31.80.3}
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 64
+    restart: unless-stopped
+  web:
+    image: caddy:2.10.2-alpine
+    environment:
+      ZEUS_ANDROID_DOMAIN: ${ZEUS_ANDROID_DOMAIN:?set the HTTPS domain}
+    ports: ["443:443", "80:80"]
+    volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", "caddy-data:/data"]
+    networks: [lab]
+    mem_limit: 128m
+    restart: unless-stopped
+networks:
+  lab:
+    ipam:
+      config: [{subnet: 172.31.80.0/24}]
+volumes:
+  android-data:
+    name: zeus-lab-android-data
+  lab-data:
+  capture-ca:
+  caddy-data:

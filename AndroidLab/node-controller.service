@@ -1,0 +1,17 @@
+[Unit]
+Description=ZEUS fixed Android container controller
+After=docker.service
+Requires=docker.service
+
+[Service]
+WorkingDirectory=/opt/zeus/AndroidLab
+EnvironmentFile=/opt/zeus/AndroidLab/.env
+ExecStart=/usr/bin/python3 /opt/zeus/AndroidLab/node_controller.py
+Restart=on-failure
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+
+[Install]
+WantedBy=multi-user.target

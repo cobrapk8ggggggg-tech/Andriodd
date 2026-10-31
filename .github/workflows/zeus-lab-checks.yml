@@ -1,0 +1,27 @@
+name: ZEUS Android Lab core checks
+on:
+  push:
+    branches: [feature/zeus-android-lab-private]
+    paths: [AndroidLab/**, Cloud/**, .github/workflows/zeus-lab-checks.yml]
+  workflow_dispatch:
+permissions: {contents: read}
+concurrency:
+  group: zeus-lab-core-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: pip install -r AndroidLab/requirements.in
+      - name: Verify the actual lab and cloud interfaces
+        run: |
+          PYTHONPATH=AndroidLab python -m unittest discover -s AndroidLab/tests -p 'test_*.py' -q
+          PYTHONPATH=Cloud python -m unittest discover -s Cloud/tests -q
+          node --check AndroidLab/zeus_android/web/lab.js
+          node --check AndroidLab/zeus_android/web/transports.js
+          node --test AndroidLab/tests/archive_api.cjs

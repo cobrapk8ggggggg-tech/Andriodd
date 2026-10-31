@@ -1,0 +1,5 @@
+name: Bounded ZEUS Android repository test session
+description: Publishes encrypted connection details and encrypted checkpoints for a temporary Android test.
+runs:
+  using: node20
+  main: index.cjs

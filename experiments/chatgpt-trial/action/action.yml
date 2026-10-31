@@ -1,0 +1,5 @@
+name: Observe and control the Android test guest
+description: Publishes immutable observations while the bounded test awaits reviewed commands.
+runs:
+  using: node20
+  main: index.cjs

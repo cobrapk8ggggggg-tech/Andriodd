@@ -1,0 +1,12 @@
+{
+  "session": "aebe4a0d-5a80-4908-9798-bc27a3dfbd7e",
+  "owner": "a6335c86-ea20-4115-929f-02953492bb6d",
+  "conversation": "15dc304e-19b5-4517-982d-f76543956c52",
+  "public_key": "Qud1p8NkHXreYv5EzKCyZLx0WI6U406Q1FFMIKoHFCU=",
+  "purpose": "Verify actual isolated APK audit and trusted-session regression before private repository transfer",
+  "runtime_seconds": 900,
+  "verify_static": true,
+  "acceptance_auto_end": true,
+  "fixture_only": true,
+  "require_relay": false
+}

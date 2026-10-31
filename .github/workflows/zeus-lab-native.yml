@@ -1,0 +1,55 @@
+name: ZEUS Android Lab native transport verification
+on:
+  push:
+    branches: [feature/zeus-android-lab-private]
+    paths: [.zeus-ci/android-lab/run.json]
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  swift:
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Create controlled Python encryption vector
+        run: |
+          pip install cryptography==46.0.3
+          PYTHONPATH=AndroidLab python - <<'PY'
+          import json,uuid,base64,os
+          from pathlib import Path
+          from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
+          from cryptography.hazmat.primitives import serialization
+          from zeus_android.sealed import seal
+          key=X25519PrivateKey.generate();session=str(uuid.uuid4());root=Path(os.environ['RUNNER_TEMP'])/'lab-crypto';root.mkdir()
+          public=base64.b64encode(key.public_key().public_bytes(serialization.Encoding.Raw,serialization.PublicFormat.Raw)).decode()
+          private=base64.b64encode(key.private_bytes(serialization.Encoding.Raw,serialization.PrivateFormat.Raw,serialization.NoEncryption())).decode()
+          value={'session':session,'private_key':private,'box':seal('Actual Python to Swift crypto compatibility · مرحبا'.encode(),public,session)}
+          (root/'fixture.json').write_text(json.dumps(value))
+          PY
+      - name: Execute actual CryptoKit interoperability
+        run: |
+          swiftc .openminis/Host/ZeusLabEnvelope.swift .zeus-ci/android-lab/main.swift -o "$RUNNER_TEMP/lab-crypto/verify"
+          "$RUNNER_TEMP/lab-crypto/verify" "$RUNNER_TEMP/lab-crypto"
+          PYTHONPATH=AndroidLab python - <<'PY'
+          import json,base64,os
+          from pathlib import Path
+          from zeus_android.sealed import open_envelope
+          root=Path(os.environ['RUNNER_TEMP'])/'lab-crypto';fixture=json.loads((root/'fixture.json').read_text())
+          assert open_envelope(json.loads((root/'swift-box.json').read_text()),base64.b64decode(fixture['private_key'])).decode()=='Actual Swift to Python crypto compatibility · مرحبا'
+          print('PASS actual Swift → Python decryption')
+          PY
+      - name: Typecheck the Actions controller and inspector against the actual iOS SDK
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          source=Path('.openminis/Host/ZeusAndroidLab.swift').read_text()
+          prefix=source.split('struct ZeusAndroidLabButton:')[0].replace('import ZEUSBrowser','')
+          access=next(line for line in source.splitlines() if line.startswith('struct ZeusAndroidAccess:'))
+          (Path(os.environ['RUNNER_TEMP'])/'LabActualTools.swift').write_text(prefix+'\n'+access)
+          PY
+          SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
+          xcrun swiftc -typecheck -swift-version 5 -strict-concurrency=minimal -sdk "$SDK" -target arm64-apple-ios18.1-simulator .zeus-ci/android-lab/TypecheckStubs.swift .openminis/Host/ZeusLabEnvelope.swift .openminis/Host/ZeusActionsLab.swift .openminis/Host/ZeusActionsLabView.swift "$RUNNER_TEMP/LabActualTools.swift"

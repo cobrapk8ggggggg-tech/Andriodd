@@ -1,0 +1,27 @@
+name: ZEUS private project storage verification
+on:
+  push:
+    branches: [feature/zeus-android-lab-private]
+    paths: [.zeus-ci/android-lab/storage.json]
+  workflow_dispatch:
+permissions: {contents: write}
+jobs:
+  private-assets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '20'}
+      - run: pip install httpx==0.28.1
+      - name: Verify real private assets, bounded transfer and project restoration
+        env: {GITHUB_TOKEN: '${{ github.token }}'}
+        run: node AndroidLab/actions/verify_storage.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zeus-private-storage-proof
+          retention-days: 1
+          path: ${{ runner.temp }}/zeus-storage-proof.json

@@ -1,0 +1,5 @@
+{$ZEUS_ANDROID_DOMAIN} {
+    reverse_proxy worker:8080
+    header -Server
+    request_body { max_size 256MB }
+}

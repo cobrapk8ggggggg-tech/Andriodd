@@ -1,0 +1,7 @@
+{
+  "session": "zeus-chatgpt-20261030-f",
+  "sequence": 6,
+  "operation": "stop",
+  "label": "Actual Hello response observed; stop and preserve the complete scoped capture",
+  "settle_seconds": 1
+}

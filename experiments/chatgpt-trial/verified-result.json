@@ -1,0 +1,74 @@
+{
+  "run_url": "https://github.com/cobrapk8ggggggg-tech/zeus/actions/runs/41030146093",
+  "job_conclusion": "success",
+  "source_commit": "4fc7c2d8c38132835c81b99fcd47a5d4300a086c",
+  "application": {
+    "package": "com.openai.chatgpt",
+    "version": "1.2026.293",
+    "signature_verified": true,
+    "unmodified_apk": true
+  },
+  "guest": {
+    "android_api": 32,
+    "configured_cores": 2,
+    "configured_ram_mib": 2048,
+    "abis": "x86_64,arm64-v8a"
+  },
+  "credentials_entered": false,
+  "independent_tls_control_passed": true,
+  "reviewed_message_delivery": "verified_in_ui_and_actual_network_response",
+  "prompt": "Hello please reply with one word",
+  "assistant_reply": "Hello!",
+  "request": {
+    "method": "POST",
+    "url": "https://android.chat.openai.com/backend-anon/f/conversation",
+    "timestamp_utc": "2026-10-30T09:08:25.508+00:00",
+    "body_contains_prompt": true,
+    "sanitized_body": {
+      "action": "next",
+      "messages": [
+        {
+          "author": {
+            "role": "user"
+          },
+          "content": {
+            "parts": [
+              "Hello please reply with one word"
+            ],
+            "content_type": "text"
+          }
+        }
+      ],
+      "force_use_sse": true,
+      "stream": true
+    }
+  },
+  "response": {
+    "status": 200,
+    "content_type": "text/event-stream; charset=utf-8",
+    "body_contains_reply": true,
+    "stream_callbacks": 2,
+    "first_stream_utc": "2026-10-30T09:08:26.913+00:00",
+    "complete_utc": "2026-10-30T09:08:28.390+00:00",
+    "seconds_to_first_stream": 1.404
+  },
+  "capture": {
+    "scope": [
+      "openai.com",
+      "chatgpt.com",
+      "sentry.io"
+    ],
+    "events": 256,
+    "requests": 61,
+    "bytes": 1220166,
+    "tls_failures": 0,
+    "fixtures_in_application_capture": false
+  },
+  "ended": "operator_stop",
+  "emulator_stopped_and_job_completed": true,
+  "limits": [
+    "Bounded GitHub Actions test, not persistent emulator hosting",
+    "Only listed endpoint families are recorded",
+    "No claim that every tap creates a request or that every third-party APK accepts HTTPS inspection"
+  ]
+}

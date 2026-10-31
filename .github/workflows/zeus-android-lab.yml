@@ -1,0 +1,104 @@
+name: ZEUS Android laboratory
+on:
+  push:
+    branches: [feature/zeus-android-lab-20261030]
+    paths: [AndroidLab/**, Cloud/**, .github/workflows/zeus-android-lab.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the separate Android worker image
+        run: docker build -f AndroidLab/Dockerfile -t zeus-android:test .
+      - name: Verify packaged tools and keyboard without booting Android
+        run: docker run --rm --entrypoint sh zeus-android:test -c 'test -s /opt/zeus/ime.apk && adb version && apktool --version && jadx --version && apksigner version && command -v zipalign && python -c "import aiortc, av; print(aiortc.__version__)"'
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: pip install -r AndroidLab/requirements.in
+      - run: PYTHONPATH=Cloud python -m unittest discover -v -s Cloud/tests
+      - run: PYTHONPATH=AndroidLab python -m unittest discover -v -s AndroidLab/tests
+      - run: node --check AndroidLab/zeus_android/web/lab.js
+      - name: Verify iPhone and iPad layout, fullscreen and direct APK upload
+        env:
+          CHROMIUM_PATH: /usr/bin/google-chrome
+          LAB_PROOF_DIR: android-results
+        run: |
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install --prefix "$RUNNER_TEMP/zeus-browser" --no-save playwright@1.56.1
+          NODE_PATH="$RUNNER_TEMP/zeus-browser/node_modules" PYTHONPATH=AndroidLab python AndroidLab/tests/run_browser.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-ui-evidence
+          path: android-results/
+          retention-days: 7
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.11.1'}
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - name: Build the Unicode laboratory keyboard
+        working-directory: AndroidLab/ime
+        run: gradle --no-daemon :app:assembleDebug :probe:assembleDebug
+      - run: pip install -r AndroidLab/requirements.in
+      - name: Prepare actual APK analysis tools and capture proxy
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y apksigner zipalign
+          python AndroidLab/tests/prepare_tools.py
+          python -m venv /tmp/zeus-capture
+          /tmp/zeus-capture/bin/pip install mitmproxy==11.0.2
+          echo '/tmp/zeus-android-tools' >> "$GITHUB_PATH"
+          echo '/tmp/zeus-android-tools/jadx/bin' >> "$GITHUB_PATH"
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install --prefix "$RUNNER_TEMP/zeus-browser" --no-save playwright@1.56.1
+          echo "NODE_PATH=$RUNNER_TEMP/zeus-browser/node_modules" >> "$GITHUB_ENV"
+      - name: Enable KVM on the GitHub test runner
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Verify actual Android through the worker API
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          PYTHONPATH: AndroidLab
+          ZEUS_ANDROID_ADB: emulator-5554
+          ZEUS_ANDROID_PROXY: 10.0.2.2:8089
+          ZEUS_ANDROID_IME_APK: ${{ github.workspace }}/AndroidLab/ime/app/build/outputs/apk/debug/app-debug.apk
+          LAB_PROBE_APK: ${{ github.workspace }}/AndroidLab/ime/probe/build/outputs/apk/debug/probe-debug.apk
+          LAB_CAPTURE_EXE: /tmp/zeus-capture/bin/mitmdump
+          CHROMIUM_PATH: /usr/bin/google-chrome
+          LAB_PROOF_DIR: android-results
+        with:
+          api-level: 29
+          target: default
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -writable-system
+          script: python AndroidLab/tests/real_device.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-device-evidence
+          path: |
+            android-results/
+            AndroidLab/ime/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7

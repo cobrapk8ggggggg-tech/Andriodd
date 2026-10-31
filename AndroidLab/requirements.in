@@ -1,0 +1,6 @@
+-r ../Cloud/requirements.lock
+Pillow==11.3.0
+aiortc==1.14.0
+av==16.0.1
+reportlab==4.4.9
+websockets==15.0.1
